@@ -28,15 +28,25 @@ freq<- c(rep(0.001,140),rep(0.002,15),rep(0.003,8),rep(0.005,4), rep(0.006,3), r
          0.476,0.547)
 
 
-mos_haps<- c(1:80,139:148,149,151,153,155, 156:162, 164,165,166,168,169,171,172,174,176,178,179,181,183,184,186,187,188,189,190,
-             192,194,195,196,197,198,200,202,203,204,206,208,210,211,212,213,214,215,216,217,218,220) 
 
-mos_freq<- freq[mos_haps]
+mos_haps_a1<- c(1:40,139:143,149,153, 156:159, 165,168,171,174,178,181,184,187,189,
+                192,195,197,200,203,206,210,212,214,216,218) 
 
-human_haps<- c(60:138,143,148:155, 163:165,167,169,170,171,173,174,175,176,177,180,182,184,185,187,189,190,191,193,196,
-               197,199,200,201,202,203,205,206,207,208,209,211,213,214,215,216,217,219,218,220)
+mos_haps_a2<- c(41:80,144:148,151,155, 160:162, 164,166,169,172,176,179,183,186,188,190,
+                194,196,198,202,204,208,211,213,215,217,220) 
 
-human_freq<- freq[human_haps]
+mos_freq_a1<- freq[mos_haps_a1]
+mos_freq_a2<- freq[mos_haps_a2]
+
+human_haps_a1<- c(60:99,143,148:151, 163,167,170,173,175,177,182,185,189,191,196,
+               199,201,203,206,208,211,214,216,219,220)
+
+human_haps_a2<- c(100:138,152:155, 164:165,169,171,174,176,180,184,187,190,193,
+                  197,200,202,205,207,209,213,215,217,218)
+
+human_freq_a1<- freq[human_haps_a1]
+
+human_freq_a2<-freq[human_haps_a2]
 
 get_infection<- function(x){
   inf<-ifelse(x<3,rbinom(1,size=1,p=0.05),ifelse(x<4,rbinom(1,size=1,p=0.1),ifelse(x<5,rbinom(1,size=1,0.15),rbinom(1,size=1,p=0.25))))
@@ -48,13 +58,15 @@ get_moi<- function(x){
   return(moi)
 }
 
-get_pers_infec<- function(x){
-  haps_index<-sample(human_haps, size=x, prob=human_freq)
+
+
+get_pers_infec<- function(x,haps,freq){
+  haps_index<-sample(haps, size=x, prob=freq)
   return(haps_index)
 }
 
-get_mos_infec<- function(x){
-  haps_index<-sample(mos_haps, size=x, prob=mos_freq)
+get_mos_infec<- function(x,haps,freq){
+  haps_index<-sample(haps, size=x, prob=freq)
   return(haps_index)
 }
 
@@ -114,6 +126,7 @@ get_mos_death3 <- function(x){
 
 
 
+
 # #check these give the same thing
 # md1 <- c()
 # md2 <- c()
@@ -150,7 +163,10 @@ get_mos_death3 <- function(x){
 ############################
 
 run_biting_sim<- function(pr_symp, pr_clear, pr_off_feed, pr_on_feed, pr_hum_to_mos, pr_mos_to_hum,
-                          pr_num_biting, n_m, scenario_name, n_sim){
+                          pr_num_biting, n_m, scenario_name, n_sim,n_p_a1,n_m_a1, pr_move_a1, pr_move_a2){
+  
+  humans_loc<-c(rep("A1",n_p_a1),rep("A2", n_p-n_p_a1))
+  mos_loc<- c(rep("A1",n_m_a1),rep("A2",n_m-n_m_a1))
   
   symptomatic_MOI_df<- matrix(NA, nrow=n_sim, ncol=n_p*722)
   mosquito_MOI_df<- matrix(NA, nrow=n_sim, ncol=30*722)
@@ -190,9 +206,16 @@ run_biting_sim<- function(pr_symp, pr_clear, pr_off_feed, pr_on_feed, pr_hum_to_
     #starting haplotypes for people and age of those haplotypes
     
     
-    infec_p<- sapply(moi_p,get_pers_infec)
+    infec_p<- vector(mode = "list", length = n_p)
+    for(i in 1:n_p_a1){
+      infec_p[[which(humans_loc=="A1")[i]]]<- get_pers_infec(moi_p[which(humans_loc=="A1")[i]],
+                                     human_haps_a1,human_freq_a1)
+    }
     
-    
+    for(i in 1:(n_p-n_p_a1)){
+      infec_p[[which(humans_loc=="A2")[i]]]<- get_pers_infec(moi_p[which(humans_loc=="A2")[i]],
+                                                             human_haps_a2,human_freq_a2)
+    }
     
     age_haps_p<- matrix(0,nrow=n_p, ncol=length(haps))
     
@@ -206,9 +229,18 @@ run_biting_sim<- function(pr_symp, pr_clear, pr_off_feed, pr_on_feed, pr_hum_to_
     
     
     
+    infec_m<-vector(mode = "list", length = n_m)
+ 
     
-    infec_m<- sapply(moi_m,get_mos_infec)
+    for(i in 1:n_m_a1){
+      infec_m[[which(mos_loc=="A1")[i]]]<- get_mos_infec(moi_m[which(mos_loc=="A1")[i]],
+                                                             mos_haps_a1,mos_freq_a1)
+    }
     
+    for(i in 1:(n_m-n_m_a1)){
+      infec_m[[which(mos_loc=="A2")[i]]]<- get_mos_infec(moi_m[which(mos_loc=="A2")[i]],
+                                                             mos_haps_a2,mos_freq_a2)
+    }
     
     age_haps_m<- matrix(0,nrow=n_m, ncol=length(haps))
     
@@ -234,7 +266,7 @@ run_biting_sim<- function(pr_symp, pr_clear, pr_off_feed, pr_on_feed, pr_hum_to_
     
     num_infec_bites<- rep(0,n_p)
     
-    
+    num_switches<- rep(0, n_p)
     
     ##############################
     ######Start of timed sim#####
@@ -353,8 +385,32 @@ run_biting_sim<- function(pr_symp, pr_clear, pr_off_feed, pr_on_feed, pr_hum_to_
       
       
       
+      humans_moving<- rep(0,n_p)
+        for(i in 1:n_p){
+        if(humans_loc[i]=="A1"){
+          humans_moving[i]<-rbinom(1,1,pr_move_a1)
+        }
+          else{
+            humans_moving[i]<-rbinom(1,1,pr_move_a2)
+          }
+        }
       
+      num_switches<- num_switches+humans_moving
       
+      for(i in 1:n_p){
+        if(humans_loc[i]=="A1"&humans_moving[i]==1){
+          humans_loc[i]<-"A2"
+        }
+        else if(humans_loc[i]=="A1"&humans_moving[i]==0){
+          humans_loc[i]<-"A1"
+        }
+        else if(humans_loc[i]=="A2"&humans_moving[i]==1){
+          humans_loc[i]<-"A1"
+        }
+        else{
+          humans_loc[i]<-"A2"
+        }
+      }
       
       #if its a feeding day
       
@@ -377,7 +433,7 @@ run_biting_sim<- function(pr_symp, pr_clear, pr_off_feed, pr_on_feed, pr_hum_to_
             num_biting<- sample(c(1,2,3,4,5,6,7),size=1,prob=pr_num_biting)
             
             ###CHANGED
-            which_people_bite <- sample(1:200,size=num_biting,replace=F)
+            which_people_bite <- sample(which(humans_loc==mos_loc[i]),size=num_biting,replace=F)
             mos_bite[i,which_people_bite]<-1
             which_hum_bite[which_people_bite] <- 1
             # mos_bite[i,sample(1:200,size=num_biting,replace=F)]<-1
@@ -601,10 +657,12 @@ run_biting_sim<- function(pr_symp, pr_clear, pr_off_feed, pr_on_feed, pr_hum_to_
    saveRDS(age_mos_df, file=paste0("mos_age_",scenario_name))
    saveRDS(symptoms, file=paste0("symptom_status_",scenario_name))
    saveRDS(age_human_haps_array, file=paste0("haplotype_age_",scenario_name))
+   saveRDS(humans_loc, file=paste0("human_location_",scenario_name))
+   saveRDS(num_switches, file=paste0("number_of_switches_per_person",scenario_name))
 }
 
 
-run_biting_sim(pr_symp = 0.1, pr_clear = 0.75, pr_off_feed = 0.04, 
+run_biting_sim(pr_symp = 0.15, pr_clear = 0.75, pr_off_feed = 0.04, 
                     pr_on_feed = 0.4,pr_hum_to_mos = 1.0, pr_mos_to_hum = 0.65, 
                     pr_num_biting = c(0.6,0.35,0.04,0.01,0,0,0), n_m=500, 
                     scenario_name = "Duration_Sim", 
