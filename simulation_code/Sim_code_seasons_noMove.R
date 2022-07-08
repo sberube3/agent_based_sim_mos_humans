@@ -2,8 +2,8 @@ library(dplyr)
 library(extraDistr)
 library(microbenchmark)
 library(Rcpp)
-#sourceCpp("~/mozzie_sims/get_biting_status.cpp")
-sourceCpp("/Users/sophieberube/Desktop/Hopkins/Hopkins/Mozzie/Expected_v_observed/agent_based_sim_mos_humans/simulation_code/get_biting_status.cpp")
+sourceCpp("~/movement_sims/get_biting_status.cpp")
+#sourceCpp("/Users/sophieberube/Desktop/Hopkins/Hopkins/Mozzie/Expected_v_observed/agent_based_sim_mos_humans/simulation_code/get_biting_status.cpp")
 ######################################################
 ########Fixed Parameters and re-used functions#######
 #####################################################
@@ -12,6 +12,14 @@ sourceCpp("/Users/sophieberube/Desktop/Hopkins/Hopkins/Mozzie/Expected_v_observe
 #day numbering, could feed every 3 days sample mosquitoes every 7 days, sample humans every month (except sick visits)
 mos_sample_days<- seq(from=0,to=357,by=7)+365
 human_sample_days<- c(seq(from=0,to=357,by=30),357)+365
+
+low1_season_days<- c(1:365)
+high1_season_days<- c(365:(365+30*3))
+medium1_season_days<- c(max(high1_season_days)+1:(30))
+low_season_days<- c(max(medium1_season_days)+1:(30*5))
+medium2_season_days<- c(max(low_season_days)+1:(30))
+high2_season_days<- c((max(medium2_season_days)+1):722)
+
 
 #people
 n_p<- 200
@@ -154,10 +162,10 @@ remove_0_values_take_min<- function(x){
 ############################
 
 run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_feed, pr_on_feed, pr_hum_to_mos, pr_mos_to_hum,
-                          pr_num_biting, n_m, scenario_name, n_sim,n_p_a1,n_m_a1, pr_move_a1, pr_move_a2){
+                          pr_num_biting, n_m, scenario_name, n_sim,n_p_a1,n_m_a1, pr_move_a1, pr_move_a2,prop_mobile_a1,
+                          prop_mobile_a2, prop_med_season, prop_low_season){
   
-  humans_loc<-c(rep("A1",n_p_a1),rep("A2", n_p-n_p_a1))
-  mos_loc<- c(rep("A1",n_m_a1),rep("A2",n_m-n_m_a1))
+  
   
   symptomatic_MOI_df<- matrix(NA, nrow=n_sim, ncol=n_p*722)
   mosquito_MOI_df<- matrix(NA, nrow=n_sim, ncol=30*722)
@@ -166,10 +174,17 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
   age_mos_df<- matrix(NA, nrow=n_sim, ncol=n_m)
   age_human_haps_array<- array(NA, c(n_p,length(haps)*722, n_sim))
   symptoms<-array(NA, c(n_p, 722,n_sim) )
+  location<- array(NA, c(n_p, 722, n_sim))
   
   
   for(q in 1:n_sim){
     #mosquito ages
+    humans_loc<-c(rep("A1",n_p_a1),rep("A2", n_p-n_p_a1))
+    mos_loc<- c(rep("A1",n_m_a1),rep("A2",n_m-n_m_a1))
+    
+    mobile_humans<- rep(0, n_p)
+    mobile_humans[c(sample(1:n_p_a1,size=n_p_a1*prop_mobile_a1,replace=F),
+                    sample((n_p_a1+1):n_p,size=(n_p-n_p_a1)*prop_mobile_a2,replace=F))]<-1
     
     age_m<- rtpois(n_m, 4,a=0,b=14)
     
@@ -198,7 +213,7 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
     
     
     infec_p<- vector(mode = "list", length = n_p)
-    for(i in 1:2){
+    for(i in 1:n_p_a1){
       infec_p[[which(humans_loc=="A1")[i]]]<- get_pers_infec(moi_p[which(humans_loc=="A1")[i]],
                                                              human_haps_a1,human_freq_a1)
       
@@ -409,9 +424,9 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
       
       
       
-      
-      humans_moving <- rbinom(n_p, 1, pr_move_a1 + (pr_move_a2 - pr_move_a1) * 
-                                (humans_loc=="A1"))
+      humans_moving<- rep(0, n_p)
+      humans_moving[humans_loc=="A1"& mobile_humans==1] <- rbinom(length(which(humans_loc=="A1"&mobile_humans==1)), 1, pr_move_a1)
+      humans_moving[humans_loc=="A2" & mobile_humans==1]<- rbinom(length(which(humans_loc=="A2"& mobile_humans==1)), 1, pr_move_a2)
       # humans_moving<- rep(0,n_p)
       # for(i in 1:n_p){
       #   if(humans_loc[i]=="A1"){
@@ -423,12 +438,19 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
       # }
       
       
-      num_switches<- num_switches+humans_moving
-      humans_loc[humans_moving == 1 & 
-                   humans_loc == "A1"] <- "A2"
       
-      humans_loc[humans_moving == 1 & 
-                   humans_loc == "A2"] <- "A1"
+      num_switches<- num_switches+humans_moving
+      
+      for(i in 1:n_p){
+        if(humans_moving[i]==1&humans_loc[i]=="A1"){
+          humans_loc[i]<- "A2"
+        }
+        else if(humans_moving[i]==1&humans_loc[i]=="A2"){
+          humans_loc[i]<- "A1"
+        }
+      }
+      
+      location[,r,q]<- humans_loc
       
       # for(i in 1:n_p){
       #   if(humans_loc[i]=="A1"&humans_moving[i]==1){
@@ -447,7 +469,14 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
       
       #if its a feeding day
       
-      
+     
+      eligible_mosquitoes<- ifelse(r%in%medium1_season_days|r%in%medium2_season_days, 
+                                   c(rep(1, n_m_a1*prop_med_season),rep(0,n_m_a1*(1-prop_med_season)),
+                                     rep(1, (n_m-n_m_a1)*prop_med_season),rep(0,(n_m-n_m_a1)*(1-prop_med_season))),
+                                   ifelse(r%in%low_season_days|r%in%low1_season_days,
+                                    c(rep(1, n_m_a1*prop_low_season),rep(0,n_m_a1*(1-prop_low_season)),
+                                      rep(1, (n_m-n_m_a1)*prop_low_season),rep(0,(n_m-n_m_a1)*(1-prop_low_season))),
+                                    rep(1,n_m)))
       
       mos_bite<- matrix(0, n_m,n_p)
       which_mos_bite <- rep(0, n_m)
@@ -458,8 +487,8 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
       bit_last_3_days[bit_last_3_days>3] = 0
       
       mos_biting_probs<-rep(0,n_m)
-      mos_biting_probs[bit_last_3_days>=1|age_m<2]<-rbinom(length(mos_biting_probs[bit_last_3_days>=1|age_m<2]),1,pr_off_feed)
-      mos_biting_probs[bit_last_3_days<1&age_m>=2]<-rbinom(length(mos_biting_probs[bit_last_3_days<1&age_m>=2]),1,pr_on_feed)
+      mos_biting_probs[(bit_last_3_days>=1|age_m<2)&eligible_mosquitoes==1]<-rbinom(length(mos_biting_probs[(bit_last_3_days>=1|age_m<2)&eligible_mosquitoes==1]),1,pr_off_feed)
+      mos_biting_probs[(bit_last_3_days<1&age_m>=2)&eligible_mosquitoes==1]<-rbinom(length(mos_biting_probs[(bit_last_3_days<1&age_m>=2)&eligible_mosquitoes==1]),1,pr_on_feed)
       
       
       bites <- rbinom(n_m, 1, mos_biting_probs)
@@ -475,6 +504,7 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
         which_hum_bite[which_people_bite] <- 1
         
       }
+      
       
       bit_last_3_days[which_mos_bite==1]<-1
       
@@ -667,8 +697,8 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
       
       #if its a human and mosquito sample day     
       if(r%in%human_sample_days&r%in%mos_sample_days){
-        sample_index_a1<- sample(which(mos_loc=="A1"), size=15, replace=F)
-        sample_index_a2<- sample(which(mos_loc=="A2"), size=15, replace=F)
+        sample_index_a1<- sample(which(mos_loc=="A1"&eligible_mosquitoes==1), size=15, replace=F)
+        sample_index_a2<- sample(which(mos_loc=="A2"&eligible_mosquitoes==1), size=15, replace=F)
         sample_index<- c(sample_index_a1,sample_index_a2)
         mos_moi<- rep(NA,30)
         for(t in 1:30){
@@ -711,8 +741,8 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
       }  
       #if its only a mosquito sample day
       if(r%in% mos_sample_days){
-        sample_index_a1<- sample(which(mos_loc=="A1"), size=15, replace=F)
-        sample_index_a2<- sample(which(mos_loc=="A2"), size=15, replace=F)
+        sample_index_a1<- sample(which(mos_loc=="A1"&eligible_mosquitoes==1), size=15, replace=F)
+        sample_index_a2<- sample(which(mos_loc=="A2"&eligible_mosquitoes==1), size=15, replace=F)
         sample_index<- c(sample_index_a1,sample_index_a2)
         mos_moi<- rep(NA,30)
         for(t in 1:30){
@@ -762,11 +792,13 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
       }
       age_human_haps_array[,((1+(length(haps)*(r-1))):(length(haps)*r)),q]<- age_haps_p
       
-      print(r)
+      
+      
     }
     
     eir_df[q,]<- num_infec_bites
     age_mos_df[q,]<- age_m
+    print(q)
     
   }
   saveRDS(symptomatic_MOI_df,file=paste0("symptomatic_MOI_",scenario_name))
@@ -776,20 +808,43 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
   saveRDS(age_mos_df, file=paste0("mos_age_",scenario_name))
   saveRDS(symptoms, file=paste0("symptom_status_",scenario_name))
   saveRDS(age_human_haps_array, file=paste0("haplotype_age_",scenario_name))
-  saveRDS(humans_loc, file=paste0("human_location_",scenario_name))
-  saveRDS(num_switches, file=paste0("number_of_switches_per_person",scenario_name))
+  saveRDS(num_switches, file=paste0("number_of_switches_per_person_",scenario_name))
+  saveRDS(location, file=paste0("location",scenario_name))
 }
 
 
 
 run_biting_sim(pr_symp_infec = 0.05, pr_symp_non_infec = 0.05, pr_clear = 0.85, pr_off_feed = 0.01, 
-               pr_on_feed = 0.1,pr_hum_to_mos = 0.6, pr_mos_to_hum = 0.3, 
+               pr_on_feed = 0.1,pr_hum_to_mos = 0.65, pr_mos_to_hum = 0.3, 
                pr_num_biting = c(0.6, 0.35, 0.04,0.01, 0,0,0), n_m=30000, 
-               n_p_a1 = 100, n_m_a1 = 30000/2, pr_move_a1 = 0, pr_move_a2 = 0,
-               scenario_name = "mvt_test", n_sim=1)
+               n_p_a1 = 100, n_m_a1 = 30000/2, pr_move_a1 = 0, pr_move_a2 = 0, prop_mobile_a1 = 0, prop_mobile_a2 = 0,
+               prop_med_season = 0.75, prop_low_season = 0.5,
+               scenario_name = "Season075_05_NoMove_longDry", n_sim=5)
 
+run_biting_sim(pr_symp_infec = 0.05, pr_symp_non_infec = 0.05, pr_clear = 0.85, pr_off_feed = 0.01, 
+               pr_on_feed = 0.1,pr_hum_to_mos = 0.65, pr_mos_to_hum = 0.3, 
+               pr_num_biting = c(0.6, 0.35, 0.04,0.01, 0,0,0), n_m=30000, 
+               n_p_a1 = 100, n_m_a1 = 30000/2, pr_move_a1 = 0, pr_move_a2 = 0, prop_mobile_a1 = 0, prop_mobile_a2 = 0,
+               prop_med_season = 0.80, prop_low_season = 0.45,
+               scenario_name = "Season08_045_NoMove_longDry", n_sim=5)
 
+run_biting_sim(pr_symp_infec = 0.05, pr_symp_non_infec = 0.05, pr_clear = 0.85, pr_off_feed = 0.01, 
+               pr_on_feed = 0.1,pr_hum_to_mos = 0.65, pr_mos_to_hum = 0.3, 
+               pr_num_biting = c(0.6, 0.35, 0.04,0.01, 0,0,0), n_m=30000, 
+               n_p_a1 = 100, n_m_a1 = 30000/2, pr_move_a1 = 0, pr_move_a2 = 0, prop_mobile_a1 = 0, prop_mobile_a2 = 0,
+               prop_med_season = 0.85, prop_low_season = 0.4,
+               scenario_name = "Season085_04_NoMove_longDry", n_sim=5)
 
-eir<- readRDS("eir_mvt_test")
-human_moi<- readRDS("human_MOI_mvt_test")
-summary(human_moi[-which(human_moi==0|is.na(human_moi))])
+run_biting_sim(pr_symp_infec = 0.05, pr_symp_non_infec = 0.05, pr_clear = 0.85, pr_off_feed = 0.01, 
+               pr_on_feed = 0.1,pr_hum_to_mos = 0.65, pr_mos_to_hum = 0.3, 
+               pr_num_biting = c(0.6, 0.35, 0.04,0.01, 0,0,0), n_m=30000, 
+               n_p_a1 = 100, n_m_a1 = 30000/2, pr_move_a1 = 0, pr_move_a2 = 0, prop_mobile_a1 = 0, prop_mobile_a2 = 0,
+               prop_med_season = 0.9, prop_low_season = 0.35,
+               scenario_name = "Season09_035_NoMove_longDry", n_sim=5)
+
+run_biting_sim(pr_symp_infec = 0.05, pr_symp_non_infec = 0.05, pr_clear = 0.85, pr_off_feed = 0.01, 
+               pr_on_feed = 0.1,pr_hum_to_mos = 0.65, pr_mos_to_hum = 0.3, 
+               pr_num_biting = c(0.6, 0.35, 0.04,0.01, 0,0,0), n_m=30000, 
+               n_p_a1 = 100, n_m_a1 = 30000/2, pr_move_a1 = 0, pr_move_a2 = 0, prop_mobile_a1 = 0, prop_mobile_a2 = 0,
+               prop_med_season = 0.95, prop_low_season = 0.3,
+               scenario_name = "Season095_03_NoMove_longDry", n_sim=5)

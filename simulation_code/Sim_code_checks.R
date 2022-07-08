@@ -2,7 +2,6 @@ library(dplyr)
 library(extraDistr)
 library(microbenchmark)
 library(Rcpp)
-#sourceCpp("~/mozzie_sims/get_biting_status.cpp")
 sourceCpp("/Users/sophieberube/Desktop/Hopkins/Hopkins/Mozzie/Expected_v_observed/agent_based_sim_mos_humans/simulation_code/get_biting_status.cpp")
 ######################################################
 ########Fixed Parameters and re-used functions#######
@@ -27,30 +26,30 @@ freq<- c(rep(0.001,140),rep(0.002,15),rep(0.003,8),rep(0.005,4), rep(0.006,3), r
 
 
 
-mos_haps_a1<- c(1:30,60:70,139:143,148,149,151,156:159, 168,178,181,189,
-                192,195,196,203,206,210,208,211,212,214,216,220) 
+mos_haps_a1<- c(1:40,139:143,149,153, 156:159, 165,168,171,174,178,181,184,187,189,
+                192,195,197,200,203,206,210,212,214,216,218) 
 
-mos_haps_a2<- c(31:59, 71:80, 144:147,153,155, 160:162, 164,165,166,169,171,172,174,176,179,183,184,186,187,188,190,
-                194,197,198,200,202,204,213,215,217,218) 
+mos_haps_a2<- c(41:80,144:148,151,155, 160:162, 164,166,169,172,176,179,183,186,188,190,
+                194,196,198,202,204,208,211,213,215,217,220) 
 
 mos_haps<- c(1:40,139:143,149,153, 156:159, 165,168,171,174,178,181,184,187,189,
              192,195,197,200,203,206,210,212,214,216,218,41:80,144:148,151,155, 160:162, 164,166,169,172,176,179,183,186,188,190,
-             194,196,198,202,204,208,211,213,215,217,220) 
+                194,196,198,202,204,208,211,213,215,217,220) 
 
 mos_freq_a1<- freq[mos_haps_a1]
 mos_freq_a2<- freq[mos_haps_a2]
 
 mos_freq<- freq[mos_haps]
 
-human_haps_a1<- c(60:70, 81:99,143,148:151, 163,167,170,173,175,177,182,185,189,191,196,
+human_haps_a1<- c(60:99,143,148:151, 163,167,170,173,175,177,182,185,189,191,196,
                   199,201,203,206,208,211,214,216,219,220)
 
-human_haps_a2<- c(71:80, 100:138,152:155, 164:165,169,171,174,176,180,184,187,190,193,
+human_haps_a2<- c(100:138,152:155, 164:165,169,171,174,176,180,184,187,190,193,
                   197,200,202,205,207,209,213,215,217,218)
 
 human_haps<-c(60:99,143,148:151, 163,167,170,173,175,177,182,185,189,191,196,
               199,201,203,206,208,211,214,216,219,220,100:138,152:155, 164:165,169,171,174,176,180,184,187,190,193,
-              197,200,202,205,207,209,213,215,217,218)
+                  197,200,202,205,207,209,213,215,217,218)
 
 human_freq_a1<- freq[human_haps_a1]
 
@@ -78,8 +77,8 @@ get_pers_infec<- function(x,haps,freq){
 }
 
 #get_mos_infec<- function(x,haps,freq){
-#haps_index<-sample(haps, size=x, prob=freq)
-#return(haps_index)
+  #haps_index<-sample(haps, size=x, prob=freq)
+  #return(haps_index)
 #}
 
 #haplotype exchange between human and mosquitoes if biting is happening
@@ -141,7 +140,7 @@ get_mos_death3 <- function(x){
 
 remove_0_values_take_min<- function(x){
   if(length(x[x>0])>0){
-    min<- min(x[x>0])
+  min<- min(x[x>0])
   }
   else{
     min<-0
@@ -170,7 +169,7 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
   
   for(q in 1:n_sim){
     #mosquito ages
-    
+   
     age_m<- rtpois(n_m, 4,a=0,b=14)
     
     
@@ -198,23 +197,14 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
     
     
     infec_p<- vector(mode = "list", length = n_p)
-    for(i in 1:2){
+    for(i in 1:n_p_a1){
       infec_p[[which(humans_loc=="A1")[i]]]<- get_pers_infec(moi_p[which(humans_loc=="A1")[i]],
-                                                             human_haps_a1,human_freq_a1)
-      
-      
-    }
-    
-    for(i in 1:(n_p-n_p_a1)){
-      infec_p[[which(humans_loc=="A2")[i]]]<- get_pers_infec(moi_p[which(humans_loc=="A2")[i]],
-                                                             human_haps_a2,human_freq_a2)
-      
-      
+                                                             human_haps,human_freq)
     }
     
     #for(i in 1:(n_p-n_p_a1)){
-    #infec_p[[which(humans_loc=="A2")[i]]]<- get_pers_infec(moi_p[which(humans_loc=="A2")[i]],
-    #human_haps_a2,human_freq_a2)
+      #infec_p[[which(humans_loc=="A2")[i]]]<- get_pers_infec(moi_p[which(humans_loc=="A2")[i]],
+                                                             #human_haps_a2,human_freq_a2)
     #}
     
     age_haps_p<- matrix(0,nrow=n_p, ncol=length(haps))
@@ -227,14 +217,13 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
     }
     #starting haplotypes for mosquitoes  and age of those haplotypes
     
-    infec_m<- vector(mode="list", length=n_p)
     
-    infec_m[mos_loc=="A1"]<-assign_mos_haps(moi=moi_m[mos_loc=="A1"], freq=mos_freq_a1, haps=mos_haps_a1)
-    infec_m[mos_loc=="A2"]<-assign_mos_haps(moi=moi_m[mos_loc=="A2"], freq=mos_freq_a2, haps=mos_haps_a2)
+    
+    infec_m<-assign_mos_haps(moi=moi_m, freq=mos_freq, haps=mos_haps)
     
     #for(i in 1:(n_m-n_m_a1)){
-    #infec_m[[which(mos_loc=="A2")[i]]]<- get_mos_infec(moi_m[which(mos_loc=="A2")[i]],
-    #mos_haps_a2,mos_freq_a2)
+      #infec_m[[which(mos_loc=="A2")[i]]]<- get_mos_infec(moi_m[which(mos_loc=="A2")[i]],
+                                                         #mos_haps_a2,mos_freq_a2)
     #}
     
     age_haps_m<- matrix(0,nrow=n_m, ncol=length(haps))
@@ -248,7 +237,6 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
     
     old_pers_infec<- get_old_p_infec2(age_haps_p)
     
-    symp_index<- rep(0, n_p)
     
     symp_index[old_pers_infec==1]<-rbinom(length(which(old_pers_infec==1)),1,pr_symp_infec)
     symp_index[old_pers_infec==0]<-rbinom(length(which(old_pers_infec==0)),1,pr_symp_non_infec)
@@ -256,7 +244,7 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
     
     symp_age<-rep(0,n_p)
     
-    
+   
     symp_age[which(symp_index==1&old_pers_infec==1)]<- 1
     
     
@@ -268,15 +256,15 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
     
     
     min_age_haps<- apply(age_haps_m,1,remove_0_values_take_min)
-    
+  
     
     prob_bit_last_3_days<- ifelse(age_m<2,0,ifelse(min_age_haps==0 | (age_m-min_age_haps)>=3, pr_on_feed, pr_off_feed))
     
     bit_last_3_days<- rep(0,n_m)
-    
+   
     bit_last_3_days[prob_bit_last_3_days==pr_on_feed]<-rbinom(length(prob_bit_last_3_days[prob_bit_last_3_days==pr_on_feed]),1,pr_on_feed)
     bit_last_3_days[prob_bit_last_3_days==pr_off_feed]<-rbinom(length(prob_bit_last_3_days[prob_bit_last_3_days==pr_off_feed]),1,pr_off_feed)
-    
+
     ##############################
     ######Start of timed sim#####
     #############################
@@ -353,7 +341,7 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
       
       
       
-      symp_age[which(symp_index==1&old_infec_p==1)]<-1
+     symp_age[which(symp_index==1&old_infec_p==1)]<-1
       #}
       #}
       #}
@@ -599,7 +587,7 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
             infec_p[[i]]<- c(infec_p[[i]],new_haps_m)
             age_haps_p[i,new_haps_m]<- 1
             if(length(new_haps_m)>0){
-              inf_bites[j]<-1
+            inf_bites[j]<-1
             }
           }
           # }
@@ -667,9 +655,7 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
       
       #if its a human and mosquito sample day     
       if(r%in%human_sample_days&r%in%mos_sample_days){
-        sample_index_a1<- sample(which(mos_loc=="A1"), size=15, replace=F)
-        sample_index_a2<- sample(which(mos_loc=="A2"), size=15, replace=F)
-        sample_index<- c(sample_index_a1,sample_index_a2)
+        sample_index<- sample(1:n_m,size=30)
         mos_moi<- rep(NA,30)
         for(t in 1:30){
           mos_moi[t]<- length(na.omit(unlist(infec_m[[sample_index[t]]])))
@@ -711,9 +697,7 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
       }  
       #if its only a mosquito sample day
       if(r%in% mos_sample_days){
-        sample_index_a1<- sample(which(mos_loc=="A1"), size=15, replace=F)
-        sample_index_a2<- sample(which(mos_loc=="A2"), size=15, replace=F)
-        sample_index<- c(sample_index_a1,sample_index_a2)
+        sample_index<- sample(1:n_m,size=30)
         mos_moi<- rep(NA,30)
         for(t in 1:30){
           mos_moi[t]<- length(na.omit(unlist(infec_m[[sample_index[t]]])))
@@ -781,15 +765,17 @@ run_biting_sim<- function(pr_symp_infec, pr_symp_non_infec, pr_clear, pr_off_fee
 }
 
 
-
 run_biting_sim(pr_symp_infec = 0.05, pr_symp_non_infec = 0.05, pr_clear = 0.85, pr_off_feed = 0.01, 
                pr_on_feed = 0.1,pr_hum_to_mos = 0.6, pr_mos_to_hum = 0.3, 
-               pr_num_biting = c(0.6, 0.35, 0.04,0.01, 0,0,0), n_m=30000, 
-               n_p_a1 = 100, n_m_a1 = 30000/2, pr_move_a1 = 0, pr_move_a2 = 0,
-               scenario_name = "mvt_test", n_sim=1)
+               pr_num_biting = c(0.6,0.35,0.04,0.01,0,0,0), n_m=30000, 
+               n_p_a1 = 200, n_m_a1 = 30000, pr_move_a1 = 0, pr_move_a2 = 0,
+               scenario_name = "test", 
+               n_sim=1)
 
 
-
-eir<- readRDS("eir_mvt_test")
-human_moi<- readRDS("human_MOI_mvt_test")
-summary(human_moi[-which(human_moi==0|is.na(human_moi))])
+eir<- readRDS("eir_test")
+symptoms<- readRDS("symptom_status_test")
+mos_moi<- readRDS("mosquito_MOI_test")
+mos_moi<-as.vector(mos_moi)[-which(is.na(mos_moi)|mos_moi==0)]
+human_moi<- readRDS("human_MOI_test")
+human_moi<- as.vector(human_moi)[-which(is.na(human_moi)|human_moi==0)]

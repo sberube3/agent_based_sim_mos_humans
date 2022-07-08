@@ -1,6 +1,7 @@
 library(ggplot2)
 library(tidyverse)
 library(lubridate)
+library(Rcpp)
 
 csp<- read.csv("csp_haps.csv")
 
@@ -182,7 +183,143 @@ colnames(haps_matrix_with_dates)<- c("unq_memID","sample_date","village_ID",haps
 saveRDS(haps_matrix_with_dates,"CSP_haplotypes_matrix")
 
 
-##
+###########################
+
+haps
+
+proportion_with_pair_whole_pop<-matrix(NA, nrow=length(haps),ncol=length(haps))
+
+for(i in 1:nrow(proportion_with_pair_whole_pop)){
+  for(j in 1:nrow(proportion_with_pair_whole_pop)){
+    have_pair<- rep(0,nrow(human_haps_csp))
+    for(k in 1:nrow(human_haps_csp)){
+      
+      if(haps[i]%in%human_haps_csp$Haplotypes[[k]] & haps[j]%in%human_haps_csp$Haplotypes[[k]]){
+        have_pair[k]<-1
+      }
+      
+    }
+    proportion_with_pair_whole_pop[i,j]<- sum(have_pair)
+  }
+  print(i)
+}
+
+proportion_with_pair_whole_pop<-proportion_with_pair_whole_pop/nrow(human_haps_csp)
+
+
+
+proportion_with_pair_within_k<-matrix(NA, nrow=length(haps),ncol=length(haps))
+
+for(i in 1:nrow(proportion_with_pair_within_k)){
+  for(j in 1:nrow(proportion_with_pair_within_k)){
+    have_pair<- rep(0,nrow(human_haps_csp[which(human_haps_csp$village_ID=="K"),]))
+    for(k in 1:length(which(human_haps_csp$village_ID=="K"))){
+      
+      if(haps[i]%in%human_haps_csp$Haplotypes[[which(human_haps_csp$village_ID=="K")[k]]] & haps[j]%in%human_haps_csp$Haplotypes[[which(human_haps_csp$village_ID=="K")[k]]]){
+        have_pair[k]<-1
+      }
+      
+     
+    }
+    proportion_with_pair_within_k[i,j]<- sum(have_pair)
+  }
+  print(i)
+}
+
+proportion_with_pair_within_k<-proportion_with_pair_within_k/nrow(human_haps_csp[which(human_haps_csp$village_ID=="K"),])
+
+
+
+proportion_with_pair_within_m<-matrix(NA, nrow=length(haps),ncol=length(haps))
+
+for(i in 1:nrow(proportion_with_pair_within_m)){
+  for(j in 1:nrow(proportion_with_pair_within_m)){
+    have_pair<- rep(0,nrow(human_haps_csp[which(human_haps_csp$village_ID=="M"),]))
+    for(k in 1:length(which(human_haps_csp$village_ID=="M"))){
+      
+      if(haps[i]%in%human_haps_csp$Haplotypes[[which(human_haps_csp$village_ID=="M")[k]]] & haps[j]%in%human_haps_csp$Haplotypes[[which(human_haps_csp$village_ID=="M")[k]]]){
+        have_pair[k]<-1
+      }
+      
+      
+    }
+    proportion_with_pair_within_m[i,j]<- sum(have_pair)
+  }
+  print(i)
+}
+
+proportion_with_pair_within_m<-proportion_with_pair_within_m/nrow(human_haps_csp[which(human_haps_csp$village_ID=="M"),])
+
+
+
+proportion_with_pair_within_s<-matrix(NA, nrow=length(haps),ncol=length(haps))
+
+for(i in 1:nrow(proportion_with_pair_within_s)){
+  for(j in 1:nrow(proportion_with_pair_within_s)){
+    have_pair<- rep(0,nrow(human_haps_csp[which(human_haps_csp$village_ID=="S"),]))
+    for(k in 1:length(which(human_haps_csp$village_ID=="S"))){
+      
+      if(haps[i]%in%human_haps_csp$Haplotypes[[which(human_haps_csp$village_ID=="S")[k]]] & haps[j]%in%human_haps_csp$Haplotypes[[which(human_haps_csp$village_ID=="S")[k]]]){
+        have_pair[k]<-1
+      }
+      
+      
+    }
+    proportion_with_pair_within_s[i,j]<- sum(have_pair)
+  }
+  print(i)
+}
+
+proportion_with_pair_within_s<-proportion_with_pair_within_s/nrow(human_haps_csp[which(human_haps_csp$village_ID=="S"),])
+
+
+permutation_proportion_with_pair_whole_pop<- array(NA,c(length(haps), length(haps), 50))
+
+hap_freqs<- rep(NA, length(haps))
+
+for(i in 1:length(haps)){
+  contains_hap<- rep(0, nrow(human_haps_csp))
+  for(j in 1:nrow(human_haps_csp)){
+  if(haps[i]%in%human_haps_csp$Haplotypes[[j]]){
+    contains_hap[j]<-1
+  }
+  }
+  hap_freqs[i]<- mean(contains_hap)
+}
+
+for(l in 1:50){
+  human_haps_csp_permuted<- vector(mode="list", length=nrow(human_haps_csp))
+  
+  for(m in 1:nrow(human_haps_csp)){
+    human_haps_csp_permuted[[m]]<- sample(haps, size=human_haps_csp$haplotype_number[m], prob=hap_freqs, replace=F)
+  }
+  
+for(i in 1:length(haps)){
+  for(j in 1:length(haps)){
+    have_pair<- rep(0,nrow(human_haps_csp))
+    for(k in 1:nrow(human_haps_csp)){
+      
+      if(haps[i]%in%human_haps_csp_permuted[[k]] & haps[j]%in%human_haps_csp_permuted[[k]]){
+        have_pair[k]<-1
+      }
+      
+    }
+    permutation_proportion_with_pair_whole_pop[i,j,l]<- mean(have_pair)
+  }
+
+}
+  print(l)
+}
+
+saveRDS(permutation_proportion_with_pair_whole_pop, "Permutation_proportion_pairs_haps")
+
+
+permutation_proportion_array<- readRDS("Permutation_proportion_pairs_haps")
+
+length()
+
+
+
 
 
   
